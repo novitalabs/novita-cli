@@ -9,9 +9,9 @@ description: >
   workloads, or interact with any novita.ai API. Also trigger when the user mentions the `novita`
   or `cnovita` CLI tool, Novita AI pricing/models/balance, or any task involving the Novita platform.
 command: novita
-install: pip install -e .
+install: pip install cnovita
 env:
-  NOVITA_API_KEY: required
+  NOVITA_API_KEY: required — get one at https://novita.ai/settings/key-management
 capabilities:
   - llm-chat
   - llm-completion
@@ -174,17 +174,17 @@ novita audio asr hello.mp3
 
 ## Agent Guidance
 
+- **API Key**: `NOVITA_API_KEY` env var is required. If not set, guide the user to create one at https://novita.ai/settings/key-management. Alternatively pass `--api-key` per-command.
 - Use `--json-output` for all machine-readable output
 - Use `--no-stream` with chat for complete JSON responses
 - For async commands, use `--no-wait` to get task_id, then `novita task wait <id>` for control
 - All commands exit with code 1 on error, printing to stderr
 - GPU instance creation costs real money — check `novita gpu products` for pricing first
 - Template CRUD is free — safe for testing
-- `--api-key` flag or `NOVITA_API_KEY` env var is required for all commands
 
 ## Common Errors
 
-- **"API key required"** → Set `NOVITA_API_KEY` env var or pass `--api-key`
+- **"API key required"** → Set `NOVITA_API_KEY` env var or pass `--api-key`. Get a key at https://novita.ai/settings/key-management
 - **"INSUFFICIENT_RESOURCE"** on GPU create → Try a different `--product-id` or `--billing spot`
 - **Task timeout** → Increase `--timeout` value, or use `--no-wait` and poll manually
 - **404 on storage/billing APIs** → These endpoints may not be available for all account types

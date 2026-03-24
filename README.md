@@ -2,17 +2,23 @@
 
 CLI for all Novita AI APIs — LLM chat, images, video, audio, GPU instances, serverless endpoints, and more.
 
-## Install
+## Get Started
 
-```bash
-pip install cnovita
+```
+CLI:   pip install cnovita
+Skill: npx skills add jaxzhang-novita/cnovita
+Agent: Install cnovita by `npx skills add jaxzhang-novita/cnovita` and tell me how to use it
 ```
 
-## Setup
+## API Key
+
+An API key is required. Get one at: **https://novita.ai/settings/key-management**
 
 ```bash
-export NOVITA_API_KEY="your-key-here"
+export NOVITA_API_KEY="sk_..."
 ```
+
+Or pass it per-command: `novita --api-key sk_... chat "Hello"`
 
 ## Quick Start
 
