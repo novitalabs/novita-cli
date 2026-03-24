@@ -94,6 +94,15 @@ class TestCLIHelp(unittest.TestCase):
         self.assertIn("flux", result.output)
         self.assertIn("upscale", result.output)
         self.assertIn("remove-bg", result.output)
+        self.assertIn("img2img", result.output)
+        self.assertIn("inpainting", result.output)
+        self.assertIn("replace-bg", result.output)
+        self.assertIn("reimagine", result.output)
+        self.assertIn("cleanup", result.output)
+        self.assertIn("outpainting", result.output)
+        self.assertIn("remove-text", result.output)
+        self.assertIn("to-prompt", result.output)
+        self.assertIn("merge-face", result.output)
 
     def test_video_help(self):
         result = self.runner.invoke(cli, ["video", "--help"])
@@ -107,12 +116,32 @@ class TestCLIHelp(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("tts", result.output)
         self.assertIn("asr", result.output)
+        self.assertIn("glm-tts", result.output)
+        self.assertIn("voice-clone", result.output)
 
     def test_account_help(self):
         result = self.runner.invoke(cli, ["account", "--help"])
         self.assertEqual(result.exit_code, 0)
         self.assertIn("balance", result.output)
         self.assertIn("billing", result.output)
+        self.assertIn("usage-billing", result.output)
+        self.assertIn("fixed-billing", result.output)
+
+    def test_files_help(self):
+        result = self.runner.invoke(cli, ["files", "--help"])
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("upload", result.output)
+        self.assertIn("list", result.output)
+        self.assertIn("get", result.output)
+        self.assertIn("delete", result.output)
+        self.assertIn("content", result.output)
+
+    def test_storage_help(self):
+        result = self.runner.invoke(cli, ["storage", "--help"])
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("list", result.output)
+        self.assertIn("create", result.output)
+        self.assertIn("delete", result.output)
 
     def test_task_help(self):
         result = self.runner.invoke(cli, ["task", "--help"])
@@ -152,6 +181,8 @@ class TestCLIHelp(unittest.TestCase):
         self.assertIn("products", result.output)
         self.assertIn("metrics", result.output)
         self.assertIn("edit", result.output)
+        self.assertIn("restart", result.output)
+        self.assertIn("clusters", result.output)
 
     def test_template_help(self):
         result = self.runner.invoke(cli, ["template", "--help"])
@@ -160,6 +191,7 @@ class TestCLIHelp(unittest.TestCase):
         self.assertIn("create", result.output)
         self.assertIn("delete", result.output)
         self.assertIn("get", result.output)
+        self.assertIn("edit", result.output)
 
     def test_serverless_help(self):
         result = self.runner.invoke(cli, ["serverless", "--help"])

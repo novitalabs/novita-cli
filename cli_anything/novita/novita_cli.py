@@ -452,6 +452,307 @@ def image_remove_bg(ctx, image_path, output_path, img_format):
         sys.exit(1)
 
 
+@image.command("img2img")
+@click.argument("image_path")
+@click.argument("prompt")
+@click.option("-m", "--model", default="sd_xl_base_1.0.safetensors", help="Model name")
+@click.option("-W", "--width", default=1024, type=int, help="Width")
+@click.option("-H", "--height", default=1024, type=int, help="Height")
+@click.option("-n", "--num", default=1, type=int, help="Number of images")
+@click.option("--steps", default=20, type=int, help="Steps")
+@click.option("--cfg", "guidance_scale", default=7.5, type=float, help="Guidance scale")
+@click.option("--sampler", default="Euler a", help="Sampler")
+@click.option("--strength", default=0.7, type=float, help="Denoising strength (0-1)")
+@click.option("--negative", default="", help="Negative prompt")
+@click.option("--seed", default=-1, type=int, help="Seed")
+@click.option("-o", "--output", "output_dir", default=".", help="Output directory")
+@click.option("--no-wait", is_flag=True)
+@click.pass_context
+def image_img2img(ctx, image_path, prompt, model, width, height, num, steps,
+                  guidance_scale, sampler, strength, negative, seed, output_dir, no_wait):
+    """Generate images from an existing image + prompt (img2img).
+
+    Example: novita image img2img photo.jpg "make it watercolor" --strength 0.5
+    """
+    client = get_client(ctx)
+    img_b64 = read_image_file(image_path)
+    request = {
+        "model_name": model, "image_base64": img_b64, "prompt": prompt,
+        "width": width, "height": height, "image_num": num,
+        "steps": steps, "guidance_scale": guidance_scale,
+        "sampler_name": sampler, "strength": strength, "seed": seed,
+    }
+    if negative:
+        request["negative_prompt"] = negative
+
+    try:
+        task_id = client.img2img(request)
+        if no_wait:
+            output_json({"task_id": task_id}) if ctx.obj.get("json") else output_text(f"Task ID: {task_id}")
+            return
+        output_text(f"Task submitted: {task_id}")
+        result = client.poll_task(task_id, progress_callback=output_progress if not ctx.obj.get("json") else None)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            os.makedirs(output_dir, exist_ok=True)
+            for i, img in enumerate(result.get("images", [])):
+                url = img.get("image_url", "")
+                ext = img.get("image_type", "png")
+                out_path = os.path.join(output_dir, f"novita_i2i_{task_id[:8]}_{i}.{ext}")
+                download_url(url, out_path)
+                output_text(f"Saved: {out_path}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@image.command("inpainting")
+@click.argument("image_path")
+@click.argument("mask_path")
+@click.argument("prompt")
+@click.option("-m", "--model", default="sd_xl_base_1.0.safetensors", help="Model name")
+@click.option("-n", "--num", default=1, type=int, help="Number of images")
+@click.option("--steps", default=20, type=int, help="Steps")
+@click.option("--cfg", "guidance_scale", default=7.5, type=float, help="Guidance scale")
+@click.option("--sampler", default="Euler a", help="Sampler")
+@click.option("--strength", default=0.7, type=float, help="Strength (0-1)")
+@click.option("--seed", default=-1, type=int, help="Seed")
+@click.option("-o", "--output", "output_dir", default=".", help="Output directory")
+@click.option("--no-wait", is_flag=True)
+@click.pass_context
+def image_inpainting(ctx, image_path, mask_path, prompt, model, num, steps,
+                     guidance_scale, sampler, strength, seed, output_dir, no_wait):
+    """Inpaint masked region of an image.
+
+    Example: novita image inpainting photo.jpg mask.png "a red flower"
+    """
+    client = get_client(ctx)
+    img_b64 = read_image_file(image_path)
+    mask_b64 = read_image_file(mask_path)
+    request = {
+        "model_name": model, "image_base64": img_b64, "mask_image_base64": mask_b64,
+        "prompt": prompt, "image_num": num, "steps": steps,
+        "guidance_scale": guidance_scale, "sampler_name": sampler,
+        "strength": strength, "seed": seed,
+    }
+
+    try:
+        task_id = client.inpainting(request)
+        if no_wait:
+            output_json({"task_id": task_id}) if ctx.obj.get("json") else output_text(f"Task ID: {task_id}")
+            return
+        output_text(f"Task submitted: {task_id}")
+        result = client.poll_task(task_id, progress_callback=output_progress if not ctx.obj.get("json") else None)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            os.makedirs(output_dir, exist_ok=True)
+            for i, img in enumerate(result.get("images", [])):
+                url = img.get("image_url", "")
+                ext = img.get("image_type", "png")
+                out_path = os.path.join(output_dir, f"novita_inpaint_{task_id[:8]}_{i}.{ext}")
+                download_url(url, out_path)
+                output_text(f"Saved: {out_path}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@image.command("replace-bg")
+@click.argument("image_path")
+@click.argument("prompt")
+@click.option("-o", "--output", "output_path", default=None, help="Output file path")
+@click.option("--no-wait", is_flag=True)
+@click.pass_context
+def image_replace_bg(ctx, image_path, prompt, output_path, no_wait):
+    """Replace background of an image (async).
+
+    Example: novita image replace-bg photo.jpg "a beach sunset"
+    """
+    client = get_client(ctx)
+    img_b64 = read_image_file(image_path)
+    try:
+        task_id = client.replace_background(img_b64, prompt)
+        if no_wait:
+            output_json({"task_id": task_id}) if ctx.obj.get("json") else output_text(f"Task ID: {task_id}")
+            return
+        output_text(f"Task submitted: {task_id}")
+        result = client.poll_task(task_id, progress_callback=output_progress if not ctx.obj.get("json") else None)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            for i, img in enumerate(result.get("images", [])):
+                url = img.get("image_url", "")
+                ext = img.get("image_type", "png")
+                out = output_path or f"novita_replbg_{task_id[:8]}_{i}.{ext}"
+                download_url(url, out)
+                output_text(f"Saved: {out}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@image.command("reimagine")
+@click.argument("image_path")
+@click.option("-o", "--output", "output_path", default=None, help="Output file path")
+@click.pass_context
+def image_reimagine(ctx, image_path, output_path):
+    """Reimagine an image (sync).
+
+    Example: novita image reimagine photo.jpg -o reimagined.png
+    """
+    client = get_client(ctx)
+    img_b64 = read_image_file(image_path)
+    try:
+        result = client.reimagine(img_b64)
+        if ctx.obj.get("json"):
+            output_json({"image_type": result.get("image_type"), "size": len(result.get("image_file", ""))})
+        else:
+            out = output_path or f"reimagine_{Path(image_path).stem}.png"
+            img_data = base64.b64decode(result["image_file"])
+            with open(out, "wb") as f:
+                f.write(img_data)
+            output_text(f"Saved: {out}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@image.command("cleanup")
+@click.argument("image_path")
+@click.argument("mask_path")
+@click.option("-o", "--output", "output_path", default=None, help="Output file path")
+@click.pass_context
+def image_cleanup(ctx, image_path, mask_path, output_path):
+    """Clean up / erase masked region of an image (sync).
+
+    Example: novita image cleanup photo.jpg mask.png -o cleaned.png
+    """
+    client = get_client(ctx)
+    img_b64 = read_image_file(image_path)
+    mask_b64 = read_image_file(mask_path)
+    try:
+        result = client.cleanup(img_b64, mask_b64)
+        if ctx.obj.get("json"):
+            output_json({"image_type": result.get("image_type"), "size": len(result.get("image_file", ""))})
+        else:
+            out = output_path or f"cleanup_{Path(image_path).stem}.png"
+            img_data = base64.b64decode(result["image_file"])
+            with open(out, "wb") as f:
+                f.write(img_data)
+            output_text(f"Saved: {out}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@image.command("outpainting")
+@click.argument("image_path")
+@click.argument("prompt")
+@click.option("-W", "--width", default=1024, type=int, help="Target width (max 4096)")
+@click.option("-H", "--height", default=1024, type=int, help="Target height (max 4096)")
+@click.option("--center-x", default=512, type=int, help="Image center X position")
+@click.option("--center-y", default=512, type=int, help="Image center Y position")
+@click.option("-o", "--output", "output_path", default=None, help="Output file path")
+@click.pass_context
+def image_outpainting(ctx, image_path, prompt, width, height, center_x, center_y, output_path):
+    """Extend an image beyond its borders (sync).
+
+    Example: novita image outpainting photo.jpg "forest landscape" -W 1536 -H 1024
+    """
+    client = get_client(ctx)
+    img_b64 = read_image_file(image_path)
+    try:
+        result = client.outpainting(img_b64, prompt, width, height, center_x, center_y)
+        if ctx.obj.get("json"):
+            output_json({"image_type": result.get("image_type"), "size": len(result.get("image_file", ""))})
+        else:
+            out = output_path or f"outpaint_{Path(image_path).stem}.png"
+            img_data = base64.b64decode(result["image_file"])
+            with open(out, "wb") as f:
+                f.write(img_data)
+            output_text(f"Saved: {out}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@image.command("remove-text")
+@click.argument("image_path")
+@click.option("-o", "--output", "output_path", default=None, help="Output file path")
+@click.pass_context
+def image_remove_text(ctx, image_path, output_path):
+    """Remove text from an image (sync).
+
+    Example: novita image remove-text photo.jpg -o clean.png
+    """
+    client = get_client(ctx)
+    img_b64 = read_image_file(image_path)
+    try:
+        result = client.remove_text(img_b64)
+        if ctx.obj.get("json"):
+            output_json({"image_type": result.get("image_type"), "size": len(result.get("image_file", ""))})
+        else:
+            out = output_path or f"notext_{Path(image_path).stem}.png"
+            img_data = base64.b64decode(result["image_file"])
+            with open(out, "wb") as f:
+                f.write(img_data)
+            output_text(f"Saved: {out}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@image.command("to-prompt")
+@click.argument("image_path")
+@click.pass_context
+def image_to_prompt(ctx, image_path):
+    """Generate a text prompt describing an image (sync).
+
+    Example: novita image to-prompt photo.jpg
+    """
+    client = get_client(ctx)
+    img_b64 = read_image_file(image_path)
+    try:
+        result = client.img2prompt(img_b64)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            output_text(result.get("prompt", ""))
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@image.command("merge-face")
+@click.argument("face_image_path")
+@click.argument("target_image_path")
+@click.option("-o", "--output", "output_path", default=None, help="Output file path")
+@click.pass_context
+def image_merge_face(ctx, face_image_path, target_image_path, output_path):
+    """Merge a face onto another image (sync).
+
+    Example: novita image merge-face face.jpg target.jpg -o merged.png
+    """
+    client = get_client(ctx)
+    face_b64 = read_image_file(face_image_path)
+    target_b64 = read_image_file(target_image_path)
+    try:
+        result = client.merge_face(face_b64, target_b64)
+        if ctx.obj.get("json"):
+            output_json({"image_type": result.get("image_type"), "size": len(result.get("image_file", ""))})
+        else:
+            out = output_path or f"merged_{Path(target_image_path).stem}.png"
+            img_data = base64.b64decode(result["image_file"])
+            with open(out, "wb") as f:
+                f.write(img_data)
+            output_text(f"Saved: {out}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
 # ── Video ───────────────────────────────────────────────────────────────────
 
 @cli.group()
@@ -682,6 +983,78 @@ def audio_asr(ctx, audio_source, context_prompt):
         sys.exit(1)
 
 
+@audio.command("glm-tts")
+@click.argument("text")
+@click.option("--voice", default="tongtong", type=click.Choice(["tongtong", "chuichui", "xiaochen", "jam", "kazi", "douji", "luodo"]))
+@click.option("--speed", default=1.0, type=float, help="Speed (0.5-2)")
+@click.option("--format", "audio_format", default="wav", type=click.Choice(["wav", "pcm"]))
+@click.option("-o", "--output", "output_path", default=None, help="Output file")
+@click.pass_context
+def audio_glm_tts(ctx, text, voice, speed, audio_format, output_path):
+    """Text-to-speech with GLM TTS.
+
+    Example: novita audio glm-tts "Hello world" --voice jam -o hello.wav
+    """
+    client = get_client(ctx)
+    kwargs = {"input": text, "voice": voice, "speed": speed, "response_format": audio_format}
+    try:
+        result = client.glm_tts(**kwargs)
+        if "audio_data" in result:
+            # Binary audio response
+            if ctx.obj.get("json"):
+                output_json({"content_type": result["content_type"], "size": len(result["audio_data"])})
+            else:
+                out = output_path or f"novita_glm_tts.{audio_format}"
+                with open(out, "wb") as f:
+                    f.write(result["audio_data"])
+                output_text(f"Saved: {out}")
+        elif ctx.obj.get("json"):
+            output_json(result)
+        else:
+            audio_url = result.get("audio", {}).get("url", "") if isinstance(result.get("audio"), dict) else result.get("audio", "")
+            if audio_url and audio_url.startswith("http"):
+                out = output_path or f"novita_glm_tts.{audio_format}"
+                download_url(audio_url, out)
+                output_text(f"Saved: {out}")
+            else:
+                output_text(f"Audio data returned ({len(str(result))} chars)")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@audio.command("voice-clone")
+@click.argument("audio_url")
+@click.option("--text", default=None, help="Preview text (max 2000 chars)")
+@click.option("--model", default="speech-02-hd", help="TTS model to use")
+@click.option("--accuracy", default=None, type=float, help="Accuracy (0-1)")
+@click.pass_context
+def audio_voice_clone(ctx, audio_url, text, model, accuracy):
+    """Clone a voice from audio (MiniMax).
+
+    Example: novita audio voice-clone https://example.com/voice.mp3
+    """
+    client = get_client(ctx)
+    kwargs = {}
+    if text:
+        kwargs["text"] = text
+    if model:
+        kwargs["model"] = model
+    if accuracy is not None:
+        kwargs["accuracy"] = accuracy
+    try:
+        result = client.voice_clone(audio_url, **kwargs)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            output_text(f"Voice ID: {result.get('voice_id', '')}")
+            if result.get("audio_url"):
+                output_text(f"Preview:  {result['audio_url']}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
 # ── Account ─────────────────────────────────────────────────────────────────
 
 @cli.group()
@@ -736,6 +1109,54 @@ def account_billing(ctx):
                 output_text(f"Month: {bill.get('billingMonth', 'N/A')}")
                 output_text(f"  Total: {format_balance(bill.get('totalAmount', '0'))}")
                 output_text(f"  Status: {bill.get('status', 'N/A')}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@account.command("usage-billing")
+@click.pass_context
+def account_usage_billing(ctx):
+    """Show usage-based billing details.
+
+    Example: novita account usage-billing
+    """
+    client = get_client(ctx)
+    try:
+        result = client.get_usage_billing()
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            bills = result.get("data", [])
+            if not bills:
+                output_text("No usage-based billing data.")
+            for bill in bills:
+                output_text(f"  Period: {bill.get('billingMonth', 'N/A')}")
+                output_text(f"  Amount: {format_balance(bill.get('totalAmount', '0'))}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@account.command("fixed-billing")
+@click.pass_context
+def account_fixed_billing(ctx):
+    """Show fixed-term billing details.
+
+    Example: novita account fixed-billing
+    """
+    client = get_client(ctx)
+    try:
+        result = client.get_fixed_billing()
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            bills = result.get("data", [])
+            if not bills:
+                output_text("No fixed-term billing data.")
+            for bill in bills:
+                output_text(f"  Period: {bill.get('billingMonth', 'N/A')}")
+                output_text(f"  Amount: {format_balance(bill.get('totalAmount', '0'))}")
     except NovitaError as e:
         output_error(str(e))
         sys.exit(1)
@@ -912,6 +1333,132 @@ def batch_cancel(ctx, batch_id):
             output_json(result)
         else:
             output_text(f"Cancelled: {result.get('id', batch_id)}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+# ── Files ───────────────────────────────────────────────────────────────────
+
+@cli.group()
+def files():
+    """File management for batch processing."""
+    pass
+
+
+@files.command("upload")
+@click.argument("file_path")
+@click.pass_context
+def files_upload(ctx, file_path):
+    """Upload a JSONL file for batch processing.
+
+    Example: novita files upload batch_input.jsonl
+    """
+    client = get_client(ctx)
+    try:
+        result = client.upload_batch_file(file_path)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            output_text(f"File ID: {result.get('id', '')}")
+            output_text(f"Status:  {result.get('status', '')}")
+            output_text(f"Size:    {result.get('bytes', 0)} bytes")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@files.command("list")
+@click.pass_context
+def files_list(ctx):
+    """List uploaded files.
+
+    Example: novita files list
+    """
+    client = get_client(ctx)
+    try:
+        result = client.list_files()
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            data = result.get("data", [])
+            if not data:
+                output_text("No files found.")
+                return
+            rows = []
+            for f in data:
+                rows.append([
+                    f.get("id", ""),
+                    f.get("filename", ""),
+                    str(f.get("bytes", 0)),
+                    f.get("purpose", ""),
+                    f.get("status", ""),
+                ])
+            output_text(format_table(rows, ["ID", "Filename", "Bytes", "Purpose", "Status"]))
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@files.command("get")
+@click.argument("file_id")
+@click.pass_context
+def files_get(ctx, file_id):
+    """Get file details.
+
+    Example: novita files get file-abc123
+    """
+    client = get_client(ctx)
+    try:
+        result = client.retrieve_file(file_id)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            for k, v in result.items():
+                output_text(f"  {k}: {v}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@files.command("delete")
+@click.argument("file_id")
+@click.pass_context
+def files_delete(ctx, file_id):
+    """Delete an uploaded file.
+
+    Example: novita files delete file-abc123
+    """
+    client = get_client(ctx)
+    try:
+        result = client.delete_file(file_id)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            output_text(f"Deleted: {file_id}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@files.command("content")
+@click.argument("file_id")
+@click.option("-o", "--output", "output_path", default=None, help="Save to file")
+@click.pass_context
+def files_content(ctx, file_id, output_path):
+    """Retrieve file content.
+
+    Example: novita files content file-abc123
+    """
+    client = get_client(ctx)
+    try:
+        content = client.retrieve_file_content(file_id)
+        if output_path:
+            with open(output_path, "w") as f:
+                f.write(content)
+            output_text(f"Saved: {output_path}")
+        else:
+            output_text(content)
     except NovitaError as e:
         output_error(str(e))
         sys.exit(1)
@@ -1095,6 +1642,47 @@ def gpu_delete(ctx, instance_id):
         sys.exit(1)
 
 
+@gpu.command("restart")
+@click.argument("instance_id")
+@click.pass_context
+def gpu_restart(ctx, instance_id):
+    """Restart a GPU instance.
+
+    Example: novita gpu restart abc123
+    """
+    client = get_client(ctx)
+    try:
+        client.gpu_restart_instance(instance_id)
+        output_text(f"Instance {instance_id} restarting.")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@gpu.command("clusters")
+@click.pass_context
+def gpu_clusters(ctx):
+    """List available clusters/data centers.
+
+    Example: novita gpu clusters
+    """
+    client = get_client(ctx)
+    try:
+        result = client.gpu_list_clusters()
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            clusters = result.get("data", result.get("clusters", []))
+            if not clusters:
+                output_text("No clusters found.")
+                return
+            for c in clusters:
+                output_text(f"  {c.get('id', '')}  {c.get('name', '')}  {c.get('region', '')}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
 @gpu.command("products")
 @click.option("--gpu-num", default=None, type=int, help="Filter by GPU count")
 @click.option("--name", "product_name", default=None, help="Filter by product name")
@@ -1222,6 +1810,77 @@ def gpu_edit(ctx, instance_id, ports, expand_disk):
         sys.exit(1)
 
 
+# ── GPU Storage ─────────────────────────────────────────────────────────────
+
+@cli.group()
+def storage():
+    """Network storage management for GPU instances."""
+    pass
+
+
+@storage.command("list")
+@click.pass_context
+def storage_list(ctx):
+    """List network storage volumes.
+
+    Example: novita storage list
+    """
+    client = get_client(ctx)
+    try:
+        result = client.gpu_list_storage()
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            items = result.get("data", result.get("networkStorages", []))
+            if not items:
+                output_text("No storage volumes found.")
+                return
+            for s in items:
+                output_text(f"  {s.get('id', '')}  {s.get('storageName', '')}  {s.get('storageSize', '')}GB  {s.get('clusterId', '')}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@storage.command("create")
+@click.option("--cluster-id", required=True, help="Cluster ID")
+@click.option("--name", required=True, help="Storage name")
+@click.option("--size", required=True, type=int, help="Size in GB")
+@click.pass_context
+def storage_create(ctx, cluster_id, name, size):
+    """Create a network storage volume.
+
+    Example: novita storage create --cluster-id cl-xxx --name mydata --size 100
+    """
+    client = get_client(ctx)
+    try:
+        result = client.gpu_create_storage(cluster_id, name, size)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            output_text(f"Storage created: {result.get('id', '')}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@storage.command("delete")
+@click.argument("storage_id")
+@click.pass_context
+def storage_delete(ctx, storage_id):
+    """Delete a network storage volume.
+
+    Example: novita storage delete stor-abc123
+    """
+    client = get_client(ctx)
+    try:
+        client.gpu_delete_storage(storage_id)
+        output_text(f"Storage {storage_id} deleted.")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
 # ── GPU Templates ───────────────────────────────────────────────────────────
 
 @cli.group()
@@ -1333,6 +1992,42 @@ def template_create(ctx, name, image, rootfs, cmd, cuda, env):
             output_json(result)
         else:
             output_text(f"Template created: {result.get('templateId', '')}")
+    except NovitaError as e:
+        output_error(str(e))
+        sys.exit(1)
+
+
+@template.command("edit")
+@click.argument("template_id")
+@click.option("--name", default=None, help="New template name")
+@click.option("--image", default=None, help="New Docker image URL")
+@click.option("--rootfs", default=None, type=int, help="Root filesystem size GB")
+@click.option("--command", "cmd", default=None, help="Start command")
+@click.pass_context
+def template_edit(ctx, template_id, name, image, rootfs, cmd):
+    """Edit a template.
+
+    Example: novita template edit abc123 --name "new-name"
+    """
+    client = get_client(ctx)
+    try:
+        current = client.gpu_get_template(template_id)
+        tmpl = {"Id": template_id}
+        tmpl["name"] = name if name else current.get("name", "")
+        tmpl["image"] = image if image else current.get("image", "")
+        tmpl["rootfsSize"] = rootfs if rootfs else current.get("rootfsSize", 40)
+        tmpl["type"] = current.get("type", "instance")
+        tmpl["channel"] = current.get("channel", "private")
+        if cmd:
+            tmpl["startCommand"] = cmd
+        elif current.get("startCommand"):
+            tmpl["startCommand"] = current["startCommand"]
+
+        result = client.gpu_edit_template(tmpl)
+        if ctx.obj.get("json"):
+            output_json(result)
+        else:
+            output_text(f"Template {template_id} updated.")
     except NovitaError as e:
         output_error(str(e))
         sys.exit(1)

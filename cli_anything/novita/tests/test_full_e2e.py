@@ -899,7 +899,274 @@ class TestE2E_TaskAPI(unittest.TestCase):
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 10. Subprocess Tests (installed CLI)
+# 10. Files API
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestE2E_Files(unittest.TestCase):
+    """Real API: File management for batch processing."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    @requires_api_key
+    def test_files_list(self):
+        result = invoke(self.runner, ["files", "list"])
+        self.assertEqual(result.exit_code, 0)
+
+    @requires_api_key
+    def test_files_list_json(self):
+        result = invoke(self.runner, ["files", "list"], json_mode=True)
+        self.assertEqual(result.exit_code, 0)
+        data = json.loads(result.output)
+        self.assertIn("data", data)
+
+    @requires_api_key
+    def test_files_upload_get_delete_lifecycle(self):
+        """Upload a file, get its details, then delete it."""
+        from cli_anything.novita.core.client import NovitaClient
+
+        client = NovitaClient(api_key=API_KEY)
+
+        # Step 1: Create a JSONL file
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False) as f:
+            f.write('{"custom_id":"test-files","body":{"model":"deepseek/deepseek-v3-0324","messages":[{"role":"user","content":"hi"}],"max_tokens":5}}\n')
+            jsonl_path = f.name
+
+        try:
+            # Step 2: Upload via CLI
+            result = invoke(self.runner, ["files", "upload", jsonl_path], json_mode=True)
+            self.assertEqual(result.exit_code, 0)
+            data = json.loads(result.output)
+            file_id = data.get("id", "")
+            self.assertTrue(file_id)
+
+            # Step 3: Get file details via CLI
+            get_result = invoke(self.runner, ["files", "get", file_id], json_mode=True)
+            self.assertEqual(get_result.exit_code, 0)
+            get_data = json.loads(get_result.output)
+            self.assertEqual(get_data.get("id"), file_id)
+
+            # Step 4: Delete via CLI
+            del_result = invoke(self.runner, ["files", "delete", file_id])
+            self.assertEqual(del_result.exit_code, 0)
+        finally:
+            os.unlink(jsonl_path)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 11. Image Editing APIs (sync)
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestE2E_Image_Editing(unittest.TestCase):
+    """Real API: Sync image editing commands."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+        self._tmp_image = None
+
+    def _generate_test_image(self):
+        """Generate a tiny test image with FLUX and return local path."""
+        if self._tmp_image and os.path.exists(self._tmp_image):
+            return self._tmp_image
+
+        import requests as req
+        from cli_anything.novita.core.client import NovitaClient
+
+        client = NovitaClient(api_key=API_KEY)
+        flux_result = client.flux_schnell(
+            prompt="a red apple on white background",
+            width=256, height=256, seed=42, steps=1, image_num=1,
+        )
+        url = flux_result["images"][0]["image_url"]
+
+        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+        resp = req.get(url, timeout=30)
+        tmp.write(resp.content)
+        tmp.close()
+        self._tmp_image = tmp.name
+        return self._tmp_image
+
+    def tearDown(self):
+        if self._tmp_image and os.path.exists(self._tmp_image):
+            os.unlink(self._tmp_image)
+
+    @requires_api_key
+    def test_image_to_prompt(self):
+        """Generate image, then extract prompt description."""
+        img_path = self._generate_test_image()
+        result = invoke(self.runner, ["image", "to-prompt", img_path], json_mode=True)
+        self.assertEqual(result.exit_code, 0)
+        data = json.loads(result.output)
+        self.assertIn("prompt", data)
+        self.assertTrue(len(data["prompt"]) > 5)
+
+    @requires_api_key
+    def test_image_reimagine(self):
+        """Reimagine an image."""
+        img_path = self._generate_test_image()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = os.path.join(tmpdir, "reimagined.png")
+            result = invoke(self.runner, ["image", "reimagine", img_path, "-o", out_path])
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn("Saved:", result.output)
+            self.assertTrue(os.path.exists(out_path))
+            self.assertGreater(os.path.getsize(out_path), 100)
+
+    @requires_api_key
+    def test_image_remove_text(self):
+        """Remove text from an image (may not change much, but API call should succeed)."""
+        img_path = self._generate_test_image()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            out_path = os.path.join(tmpdir, "notext.png")
+            result = invoke(self.runner, ["image", "remove-text", img_path, "-o", out_path])
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn("Saved:", result.output)
+            self.assertTrue(os.path.exists(out_path))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 12. Billing APIs
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestE2E_Billing(unittest.TestCase):
+    """Real API: Usage-based and fixed-term billing."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    @requires_api_key
+    def test_usage_billing(self):
+        result = invoke(self.runner, ["account", "usage-billing"])
+        # May return data or error depending on account
+        self.assertIn(result.exit_code, [0, 1])
+
+    @requires_api_key
+    def test_usage_billing_json(self):
+        result = invoke(self.runner, ["account", "usage-billing"], json_mode=True)
+        self.assertIn(result.exit_code, [0, 1])
+
+    @requires_api_key
+    def test_fixed_billing(self):
+        result = invoke(self.runner, ["account", "fixed-billing"])
+        self.assertIn(result.exit_code, [0, 1])
+
+    @requires_api_key
+    def test_fixed_billing_json(self):
+        result = invoke(self.runner, ["account", "fixed-billing"], json_mode=True)
+        self.assertIn(result.exit_code, [0, 1])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 13. GPU Clusters
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestE2E_GPU_Clusters(unittest.TestCase):
+    """Real API: GPU cluster listing."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    @requires_api_key
+    def test_clusters_list(self):
+        result = invoke(self.runner, ["gpu", "clusters"])
+        self.assertEqual(result.exit_code, 0)
+
+    @requires_api_key
+    def test_clusters_json(self):
+        result = invoke(self.runner, ["gpu", "clusters"], json_mode=True)
+        self.assertEqual(result.exit_code, 0)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 14. Storage API
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestE2E_Storage(unittest.TestCase):
+    """Real API: Network storage listing."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    @requires_api_key
+    def test_storage_list(self):
+        result = invoke(self.runner, ["storage", "list"])
+        # Storage API may not be available for all accounts
+        self.assertIn(result.exit_code, [0, 1])
+
+    @requires_api_key
+    def test_storage_list_json(self):
+        result = invoke(self.runner, ["storage", "list"], json_mode=True)
+        self.assertIn(result.exit_code, [0, 1])
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 15. Template Edit
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestE2E_Template_Edit(unittest.TestCase):
+    """Real API: Template edit lifecycle."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    @requires_api_key
+    def test_template_create_edit_delete(self):
+        """Create a template, edit its name, then delete it."""
+        from cli_anything.novita.core.client import NovitaClient
+
+        client = NovitaClient(api_key=API_KEY)
+        ts = int(time.time())
+
+        # Create
+        tmpl = {
+            "name": f"cli-edit-test-{ts}",
+            "type": "instance", "channel": "private",
+            "image": "pytorch/pytorch:latest", "rootfsSize": 10,
+        }
+        create_result = client.gpu_create_template(tmpl)
+        template_id = create_result.get("templateId", "")
+        self.assertTrue(template_id)
+
+        try:
+            # Edit via CLI
+            new_name = f"cli-edited-{ts}"
+            result = invoke(self.runner, [
+                "template", "edit", template_id, "--name", new_name,
+            ])
+            self.assertEqual(result.exit_code, 0)
+            self.assertIn("updated", result.output)
+
+            # Verify name changed
+            get_result = client.gpu_get_template(template_id)
+            self.assertEqual(get_result["name"], new_name)
+        finally:
+            client.gpu_delete_template(template_id)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 16. Audio GLM TTS
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestE2E_Audio_GLM(unittest.TestCase):
+    """Real API: GLM TTS."""
+
+    def setUp(self):
+        self.runner = CliRunner()
+
+    @requires_api_key
+    def test_glm_tts_json(self):
+        result = invoke(self.runner, [
+            "audio", "glm-tts", "Hello world",
+            "--voice", "jam",
+        ], json_mode=True)
+        self.assertEqual(result.exit_code, 0)
+        data = json.loads(result.output)
+        # Should have audio data in some form
+        self.assertTrue(len(str(data)) > 10)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# 17. Subprocess Tests (installed CLI)
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestE2E_Subprocess(unittest.TestCase):

@@ -193,6 +193,44 @@ class NovitaClient:
         result = self.post("/v3/async/inpainting", data)
         return result.get("task_id", "")
 
+    def reimagine(self, image_file: str, extra: Optional[Dict] = None) -> Dict:
+        data = {"image_file": image_file}
+        if extra:
+            data["extra"] = extra
+        return self.post("/v3/reimagine", data)
+
+    def img2prompt(self, image_file: str) -> Dict:
+        return self.post("/v3/img2prompt", {"image_file": image_file})
+
+    def merge_face(self, face_image_file: str, image_file: str, extra: Optional[Dict] = None) -> Dict:
+        data = {"face_image_file": face_image_file, "image_file": image_file}
+        if extra:
+            data["extra"] = extra
+        return self.post("/v3/merge-face", data)
+
+    def cleanup(self, image_file: str, mask_file: str, extra: Optional[Dict] = None) -> Dict:
+        data = {"image_file": image_file, "mask_file": mask_file}
+        if extra:
+            data["extra"] = extra
+        return self.post("/v3/cleanup", data)
+
+    def outpainting(self, image_file: str, prompt: str, width: int, height: int,
+                    center_x: int, center_y: int, extra: Optional[Dict] = None) -> Dict:
+        data = {
+            "image_file": image_file, "prompt": prompt,
+            "width": width, "height": height,
+            "center_x": center_x, "center_y": center_y,
+        }
+        if extra:
+            data["extra"] = extra
+        return self.post("/v3/outpainting", data)
+
+    def remove_text(self, image_file: str, extra: Optional[Dict] = None) -> Dict:
+        data = {"image_file": image_file}
+        if extra:
+            data["extra"] = extra
+        return self.post("/v3/remove-text", data)
+
     # --- Video APIs ---
 
     def txt2video(self, request: Dict, extra: Optional[Dict] = None) -> str:
@@ -217,10 +255,20 @@ class NovitaClient:
         return self.post("/v3/minimax-speech-02-hd", kwargs, stream=stream)
 
     def glm_tts(self, **kwargs) -> Any:
-        return self.post("/v3/glm-tts", kwargs)
+        """GLM TTS returns binary audio data, not JSON."""
+        url = f"{BASE_URL}/v3/glm-tts"
+        resp = self._request("POST", url, json_data=kwargs)
+        content_type = resp.headers.get("Content-Type", "")
+        if "audio" in content_type:
+            return {"audio_data": resp.content, "content_type": content_type}
+        return resp.json()
 
     def glm_asr(self, **kwargs) -> Dict:
         return self.post("/v3/glm-asr", kwargs)
+
+    def voice_clone(self, audio_url: str, **kwargs) -> Dict:
+        data = {"audio_url": audio_url, **kwargs}
+        return self.post("/v3/minimax-voice-cloning", data)
 
     # --- Account APIs ---
 
@@ -229,6 +277,12 @@ class NovitaClient:
 
     def get_monthly_bill(self) -> Dict:
         return self.get("/v3/user/monthly-bill")
+
+    def get_usage_billing(self) -> Dict:
+        return self.get("/v3/user/usage-based-billing")
+
+    def get_fixed_billing(self) -> Dict:
+        return self.get("/v3/user/fixed-term-billing")
 
     # --- Task API ---
 
@@ -244,6 +298,21 @@ class NovitaClient:
     def _post_v1(self, path: str, data: Dict) -> Dict:
         url = f"{OPENAI_V1_BASE}{path}"
         return self._request("POST", url, json_data=data).json()
+
+    def list_files(self) -> Dict:
+        return self._get_v1("/files")
+
+    def retrieve_file(self, file_id: str) -> Dict:
+        return self._get_v1(f"/files/{file_id}")
+
+    def delete_file(self, file_id: str) -> Dict:
+        url = f"{OPENAI_V1_BASE}/files/{file_id}"
+        return self._request("DELETE", url).json()
+
+    def retrieve_file_content(self, file_id: str) -> str:
+        url = f"{OPENAI_V1_BASE}/files/{file_id}/content"
+        resp = self._request("GET", url)
+        return resp.text
 
     def create_batch(self, **kwargs) -> Dict:
         return self._post_v1("/batches", kwargs)
@@ -294,6 +363,12 @@ class NovitaClient:
     def gpu_delete_instance(self, instance_id: str) -> Dict:
         return self.post(f"{self.GPU_BASE}/gpu/instance/delete", {"instanceId": instance_id})
 
+    def gpu_restart_instance(self, instance_id: str) -> Dict:
+        return self.post(f"{self.GPU_BASE}/gpu/instance/restart", {"instanceId": instance_id})
+
+    def gpu_list_clusters(self) -> Dict:
+        return self.get(f"{self.GPU_BASE}/clusters")
+
     def gpu_edit_instance(self, instance_id: str, **kwargs) -> Dict:
         return self.post(f"{self.GPU_BASE}/gpu/instance/edit", {"instanceId": instance_id, **kwargs})
 
@@ -333,6 +408,12 @@ class NovitaClient:
     def gpu_create_storage(self, cluster_id: str, name: str, size: int) -> Dict:
         return self.post(f"{self.GPU_BASE}/networkstorage/create",
                          {"clusterId": cluster_id, "storageName": name, "storageSize": size})
+
+    def gpu_list_storage(self, **kwargs) -> Dict:
+        return self.get(f"{self.GPU_BASE}/networkstorages", params=kwargs)
+
+    def gpu_delete_storage(self, storage_id: str) -> Dict:
+        return self.post(f"{self.GPU_BASE}/networkstorage/delete", {"id": storage_id})
 
     # --- Serverless APIs ---
 
