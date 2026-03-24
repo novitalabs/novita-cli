@@ -6,7 +6,11 @@ setup(
     name="cnovita",
     version="0.2.0",
     description="CLI for all Novita AI APIs - LLM, images, video, audio, GPU, serverless",
-    long_description=open("README.md").read() if __import__("os").path.exists("README.md") else "",
+    long_description=(
+        (open("README.md").read() if __import__("os").path.exists("README.md") else "")
+        + "\n\n"
+        + (open("CHANGELOG.md").read() if __import__("os").path.exists("CHANGELOG.md") else "")
+    ),
     long_description_content_type="text/markdown",
     author="jaxzhang-svg",
     url="https://github.com/jaxzhang-novita/cnovita",
