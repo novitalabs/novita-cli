@@ -1,26 +1,17 @@
 ---
 name: novita
-version: 0.2.0
-description: CLI for all Novita AI APIs - LLM, images, video, audio, GPU, serverless
+version: 0.2.1
+description: >
+  CLI for all Novita AI APIs — LLM chat, image generation/editing (Stable Diffusion, FLUX),
+  video generation, text-to-speech, speech-to-text, voice cloning, GPU cloud instance management,
+  and serverless endpoints. Use this skill whenever the user wants to call Novita AI services,
+  generate or edit images, create videos, do TTS/ASR, manage GPU instances, deploy serverless
+  workloads, or interact with any novita.ai API. Also trigger when the user mentions the `novita`
+  or `cnovita` CLI tool, Novita AI pricing/models/balance, or any task involving the Novita platform.
 command: novita
 install: pip install -e agent-harness/
 env:
   NOVITA_API_KEY: required
-tests:
-  unit: 34 passed
-  e2e: 61 passed (all real API calls, zero mocks)
-  total: 95 passed (100%)
-  lifecycles:
-    - "GPU Instance: CREATE -> GET -> LIST -> DELETE (spot, multi-product fallback)"
-    - "Template: CREATE -> GET -> LIST -> CLI GET -> EDIT -> DELETE -> verify gone"
-    - "Batch: upload JSONL -> CREATE -> GET -> LIST -> cancel"
-    - "Files: upload -> get -> delete"
-    - "Async Image: generate --no-wait -> task status -> task wait -> download"
-    - "Image Upscale: FLUX -> download -> upscale --no-wait -> poll -> verify"
-    - "Image Remove-BG: FLUX -> download -> remove-bg -> verify output file"
-    - "Image Editing: FLUX -> to-prompt / reimagine / remove-text"
-    - "Audio Round-Trip: TTS -> download -> ASR -> verify transcript"
-    - "Task API: submit -> status -> poll -> complete"
 capabilities:
   - llm-chat
   - llm-completion
@@ -59,298 +50,142 @@ capabilities:
 
 # Novita AI CLI
 
-Access all Novita AI APIs from the command line.
+Access all Novita AI APIs from the command line. 95 tests pass (34 unit + 61 E2E, zero mocks).
 
-## Command Groups
+For the full command reference, read `references/commands.md`.
+For verified endpoint coverage, read `references/endpoints.md`.
 
-### `novita chat <message>` - LLM Chat
-Send chat completion requests with streaming support.
+## Quick Reference
+
 ```bash
-novita chat "What is Python?" -m deepseek/deepseek-v3-0324
-novita chat "Explain gravity" --system "Be brief" --max-tokens 100
-novita --json-output chat "Hello" --no-stream
-```
-**Options:** `-m/--model`, `--system`, `--max-tokens`, `--temperature`, `--top-p`, `--stream/--no-stream`, `--json-schema`
-
-### `novita complete <prompt>` - Text Completion
-```bash
-novita complete "Once upon a time" --max-tokens 200
-```
-
-### `novita embed <text>` - Embeddings
-```bash
-novita embed "Hello world" -m baai/bge-m3
-```
-
-### `novita rerank <query>` - Rerank Documents
-```bash
-novita rerank "best pet" -d "cats are cute" -d "dogs are loyal"
-```
-
-### `novita models list` - List Models
-```bash
+# LLM
+novita chat "Hello" -m deepseek/deepseek-v3-0324
+novita embed "text" -m baai/bge-m3
+novita rerank "query" -d "doc1" -d "doc2"
 novita models list --filter deepseek
-novita models get deepseek/deepseek-r1
-```
 
-### `novita image generate <prompt>` - Text-to-Image (SD)
-```bash
-novita image generate "a cute cat" -W 512 -H 512 --steps 20
-novita image generate "landscape" --sampler "DPM++ 2M Karras" --cfg 7.5
-```
-**Options:** `-m`, `-W`, `-H`, `-n`, `--steps`, `--cfg`, `--sampler`, `--negative`, `--seed`, `-o`, `--format`, `--no-wait`
+# Image generation
+novita image flux "a sunset" -W 512 -H 512           # sync, fast
+novita image generate "a cat" -W 512 -H 512 --steps 20  # async, SD
 
-### `novita image flux <prompt>` - FLUX.1 Schnell (sync)
-```bash
-novita image flux "a sunset" -W 512 -H 512
-```
-
-### `novita image img2img <image> <prompt>` - Image-to-Image
-```bash
-novita image img2img photo.jpg "make it watercolor" --strength 0.5
-```
-**Options:** `-m`, `-W`, `-H`, `-n`, `--steps`, `--cfg`, `--sampler`, `--strength`, `--negative`, `--seed`, `-o`, `--no-wait`
-
-### `novita image inpainting <image> <mask> <prompt>` - Inpainting
-```bash
-novita image inpainting photo.jpg mask.png "a red flower" --steps 20
-```
-
-### `novita image upscale <path>` - Image Upscale
-```bash
-novita image upscale photo.jpg --scale 2
-```
-
-### `novita image remove-bg <path>` - Remove Background (sync)
-```bash
+# Image editing (sync)
 novita image remove-bg photo.jpg -o clean.png
-```
-
-### `novita image replace-bg <image> <prompt>` - Replace Background (async)
-```bash
-novita image replace-bg photo.jpg "a beach sunset"
-```
-
-### `novita image reimagine <image>` - Reimagine (sync)
-```bash
-novita image reimagine photo.jpg -o reimagined.png
-```
-
-### `novita image cleanup <image> <mask>` - Cleanup / Erase (sync)
-```bash
-novita image cleanup photo.jpg mask.png -o cleaned.png
-```
-
-### `novita image outpainting <image> <prompt>` - Outpainting (sync)
-```bash
-novita image outpainting photo.jpg "forest landscape" -W 1536 -H 1024
-```
-
-### `novita image remove-text <image>` - Remove Text (sync)
-```bash
-novita image remove-text photo.jpg -o clean.png
-```
-
-### `novita image to-prompt <image>` - Image to Prompt (sync)
-```bash
+novita image reimagine photo.jpg -o new.png
 novita image to-prompt photo.jpg
-```
-
-### `novita image merge-face <face> <target>` - Merge Face (sync)
-```bash
+novita image remove-text photo.jpg -o clean.png
+novita image cleanup photo.jpg mask.png -o out.png
+novita image outpainting photo.jpg "forest" -W 1536
 novita image merge-face face.jpg target.jpg -o merged.png
-```
 
-### `novita video generate <prompt>` - Text-to-Video
-```bash
-novita video generate "a girl walking in snow" --frames 32
-```
+# Image editing (async)
+novita image img2img photo.jpg "watercolor" --strength 0.5
+novita image inpainting photo.jpg mask.png "red flower"
+novita image upscale photo.jpg --scale 2
+novita image replace-bg photo.jpg "beach sunset"
 
-### `novita video from-image <path>` - Image-to-Video
-```bash
+# Video (async)
+novita video generate "snow scene" --frames 32
 novita video from-image photo.jpg --model SVD-XT
-```
-
-### `novita video hunyuan <prompt>` - Hunyuan Video
-```bash
 novita video hunyuan "a cat playing piano"
-```
 
-### `novita audio tts <text>` - Text-to-Speech (MiniMax)
-```bash
-novita audio tts "Hello world" --voice Calm_Woman -o hello.mp3
-```
-**Voices:** Wise_Woman, Friendly_Person, Calm_Woman, Deep_Voice_Man, Lively_Girl, Young_Knight, and more.
-
-### `novita audio glm-tts <text>` - GLM TTS
-```bash
+# Audio
+novita audio tts "Hello" --voice Calm_Woman -o hello.mp3
 novita audio glm-tts "Hello" --voice jam -o hello.wav
-```
-**Voices:** tongtong, chuichui, xiaochen, jam, kazi, douji, luodo
-
-### `novita audio asr <source>` - Speech-to-Text
-```bash
 novita audio asr recording.wav
-novita audio asr https://example.com/audio.mp3
-```
+novita audio voice-clone https://example.com/voice.mp3
 
-### `novita audio voice-clone <audio_url>` - Voice Cloning (MiniMax)
-```bash
-novita audio voice-clone https://example.com/voice.mp3 --text "preview text"
-```
-
-### `novita account balance` - Account Balance
-```bash
+# Account
 novita account balance
-```
-
-### `novita account billing` - Monthly Bills
-```bash
 novita account billing
-```
-
-### `novita account usage-billing` - Usage-Based Billing
-```bash
 novita account usage-billing
-```
-
-### `novita account fixed-billing` - Fixed-Term Billing
-```bash
 novita account fixed-billing
-```
 
-### `novita task status <id>` - Check Task
-```bash
-novita task status abc123-def456
-```
+# Async task management
+novita task status <task_id>
+novita task wait <task_id> -o ./results --timeout 300
 
-### `novita task wait <id>` - Wait & Download
-```bash
-novita task wait abc123-def456 -o ./results --timeout 300
-```
-
-### `novita batch create/list/get/cancel` - Batch Jobs
-```bash
+# Batch & files
+novita files upload batch.jsonl
+novita files list / get / content / delete <file_id>
 novita batch create <file_id>
-novita batch list
-novita batch get <batch_id>
-novita batch cancel <batch_id>
-```
+novita batch list / get / cancel <batch_id>
 
-### `novita files` - File Management
-```bash
-novita files upload batch_input.jsonl
-novita files list
-novita files get <file_id>
-novita files content <file_id>
-novita files delete <file_id>
-```
-
-### `novita gpu` - GPU Instance Management
-```bash
-novita gpu products                    # List available GPUs
-novita gpu cpu-products                # List CPU products
-novita gpu clusters                    # List data centers
-novita gpu list                        # List your instances
+# GPU instances
+novita gpu products / cpu-products / clusters
 novita gpu create --product-id xxx --image pytorch:latest --gpu-num 1
-novita gpu get <id>                    # Instance details
-novita gpu start <id>                  # Start instance
-novita gpu stop <id>                   # Stop instance
-novita gpu restart <id>                # Restart instance
-novita gpu delete <id>                 # Delete instance
-novita gpu metrics <id>                # View metrics
-novita gpu edit <id> --expand-disk 50  # Edit instance
+novita gpu list / get / start / stop / restart / delete <id>
+novita gpu metrics / edit <id>
+
+# Templates
+novita template list / get / create / edit / delete
+
+# Storage
+novita storage list / create / delete
+
+# Serverless
+novita serverless list / get / create / update / delete
 ```
 
-### `novita template` - GPU Templates
+## Decision Guide
+
+### Which image command?
+- **Text -> Image**: `image flux` (fast, sync) or `image generate` (SD, async, more control)
+- **Image + Text -> New Image**: `image img2img` (async)
+- **Edit part of image**: `image inpainting` (mask + prompt, async) or `image cleanup` (erase masked area, sync)
+- **Extend image**: `image outpainting` (sync)
+- **Remove elements**: `image remove-bg` (background), `image remove-text` (text overlay)
+- **Describe image**: `image to-prompt` (sync)
+- **Enlarge image**: `image upscale` (async)
+- **Swap face**: `image merge-face` (sync)
+- **Restyle**: `image reimagine` (sync)
+- **New background**: `image replace-bg` (async)
+
+### Which TTS?
+- **English, high quality**: `audio tts` (MiniMax, returns download URL, mp3/wav/flac)
+- **Chinese, low latency**: `audio glm-tts` (GLM, returns binary PCM/WAV)
+
+### Sync vs Async?
+- **Sync** (result immediately): `flux`, `remove-bg`, `reimagine`, `cleanup`, `outpainting`, `remove-text`, `to-prompt`, `merge-face`
+- **Async** (returns task_id, poll with `task wait`): `generate`, `img2img`, `inpainting`, `upscale`, `replace-bg`, all `video` commands
+
+## Common Workflows
+
+### Generate, upscale, and remove background
 ```bash
-novita template list --channel official
-novita template get <id>
-novita template create --name mytempl --image pytorch:latest
-novita template edit <id> --name "new-name"
-novita template delete <id>
+novita image flux "product photo" -W 512 -H 512 -o ./tmp
+novita image upscale ./tmp/novita_flux_0.png --scale 4 --no-wait
+novita task wait <task_id> -o ./results
+novita image remove-bg ./results/task_xxx_0.png -o final.png
 ```
 
-### `novita storage` - Network Storage
+### Batch LLM processing
 ```bash
-novita storage list
-novita storage create --cluster-id cl-xxx --name mydata --size 100
-novita storage delete <id>
+novita files upload batch.jsonl
+novita batch create <file_id>
+novita batch get <batch_id>                    # poll until completed
+novita files content <output_file_id> -o results.jsonl
 ```
 
-### `novita serverless` - Serverless Endpoints
+### TTS -> ASR round-trip
 ```bash
-novita serverless list
-novita serverless create --image myimage:latest --port 8080 --product-id xxx
-novita serverless get <id>
-novita serverless update <id> --max-workers 3
-novita serverless delete <id>
+novita audio tts "Hello world" -o hello.mp3
+novita audio asr hello.mp3
 ```
 
 ## Agent Guidance
 
 - Use `--json-output` for all machine-readable output
 - Use `--no-stream` with chat for complete JSON responses
-- Async image/video commands return task IDs; use `--no-wait` + `novita task wait` for control
-- Sync image commands: `remove-bg`, `reimagine`, `cleanup`, `outpainting`, `remove-text`, `to-prompt`, `merge-face`, `flux`
-- Async image commands: `generate`, `img2img`, `inpainting`, `upscale`, `replace-bg`
+- For async commands, use `--no-wait` to get task_id, then `novita task wait <id>` for control
 - All commands exit with code 1 on error, printing to stderr
-- GPU instance creation costs real money - use `novita gpu products` to check pricing first
-- Template CRUD is free - use for testing instance configurations
-- The `--api-key` flag or `NOVITA_API_KEY` env var is required for all commands
-- Use `novita files upload` to upload JSONL for batch processing, then `novita batch create <file_id>`
+- GPU instance creation costs real money — check `novita gpu products` for pricing first
+- Template CRUD is free — safe for testing
+- `--api-key` flag or `NOVITA_API_KEY` env var is required for all commands
 
-## Verified Endpoints (E2E Tested)
+## Common Errors
 
-| Endpoint | CLI Command | Test Status |
-|----------|-------------|-------------|
-| POST /v3/openai/chat/completions | `novita chat` | Passed (streaming + JSON + system) |
-| POST /v3/openai/completions | `novita complete` | Passed (text + JSON) |
-| POST /v3/openai/embeddings | `novita embed` | Passed (1024-dim verified) |
-| POST /v3/openai/rerank | `novita rerank` | Passed (ranking + scores) |
-| GET /v3/openai/models | `novita models list/get` | Passed (list + get by ID) |
-| POST /v3beta/flux-1-schnell | `novita image flux` | Passed (download to disk) |
-| POST /v3/async/txt2img | `novita image generate` | Passed (full async lifecycle) |
-| POST /v3/async/img2img | `novita image img2img` | Passed |
-| POST /v3/async/inpainting | `novita image inpainting` | Passed |
-| POST /v3/async/upscale | `novita image upscale` | Passed (FLUX -> upscale -> poll) |
-| POST /v3/remove-background | `novita image remove-bg` | Passed (FLUX -> remove-bg pipeline) |
-| POST /v3/async/replace-background | `novita image replace-bg` | Passed |
-| POST /v3/reimagine | `novita image reimagine` | Passed |
-| POST /v3/cleanup | `novita image cleanup` | Passed |
-| POST /v3/outpainting | `novita image outpainting` | Passed |
-| POST /v3/remove-text | `novita image remove-text` | Passed |
-| POST /v3/img2prompt | `novita image to-prompt` | Passed |
-| POST /v3/merge-face | `novita image merge-face` | Passed |
-| POST /v3/async/txt2video | `novita video generate` | Passed (submit + status check) |
-| POST /v3/async/hunyuan-video-fast | `novita video hunyuan` | Passed (submit + status check) |
-| POST /v3/minimax-speech-02-hd | `novita audio tts` | Passed (download + ASR round-trip) |
-| POST /v3/glm-tts | `novita audio glm-tts` | Passed |
-| POST /v3/glm-asr | `novita audio asr` | Passed (base64 data URI, round-trip) |
-| POST /v3/minimax-voice-cloning | `novita audio voice-clone` | Passed |
-| GET /v3/user | `novita account balance` | Passed |
-| GET (billing) | `novita account billing` | Passed |
-| GET (usage-billing) | `novita account usage-billing` | Passed |
-| GET (fixed-billing) | `novita account fixed-billing` | Passed |
-| GET /openai/v1/files | `novita files list` | Passed |
-| POST /openai/v1/files | `novita files upload` | Passed |
-| GET /openai/v1/files/{id} | `novita files get` | Passed |
-| DELETE /openai/v1/files/{id} | `novita files delete` | Passed |
-| GET /openai/v1/files/{id}/content | `novita files content` | Passed |
-| POST /openai/v1/batches | `novita batch create` | Passed (full lifecycle) |
-| GET /openai/v1/batches | `novita batch list/get` | Passed |
-| POST .../gpu/instance/create+delete | `novita gpu create/delete` | Passed (full lifecycle) |
-| POST .../gpu/instance/restart | `novita gpu restart` | Passed |
-| GET .../gpu/instances | `novita gpu list` | Passed |
-| GET .../gpu/instance | `novita gpu get` | Passed |
-| GET .../products | `novita gpu products` | Passed |
-| GET .../cpu/products | `novita gpu cpu-products` | Passed |
-| GET .../clusters | `novita gpu clusters` | Passed |
-| GET .../networkstorages | `novita storage list` | Passed |
-| POST .../networkstorage/create | `novita storage create` | Passed |
-| POST .../template/create+delete | `novita template create/delete` | Passed (full lifecycle) |
-| POST .../template/update | `novita template edit` | Passed |
-| GET .../template | `novita template get` | Passed |
-| GET .../templates | `novita template list` | Passed |
-| GET .../endpoints | `novita serverless list` | Passed |
-| GET /v3/async/task-result | `novita task status/wait` | Passed (full async lifecycle) |
+- **"API key required"** → Set `NOVITA_API_KEY` env var or pass `--api-key`
+- **"INSUFFICIENT_RESOURCE"** on GPU create → Try a different `--product-id` or `--billing spot`
+- **Task timeout** → Increase `--timeout` value, or use `--no-wait` and poll manually
+- **404 on storage/billing APIs** → These endpoints may not be available for all account types
+- **GLM TTS returns binary** → Output is raw PCM/WAV audio, saved directly to file (not JSON)
