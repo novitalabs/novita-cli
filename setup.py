@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="cnovita",
-    version="0.2.1",
+    version="0.3.0",
     description="CLI for all Novita AI APIs - LLM, images, video, audio, GPU, serverless",
     long_description=(
         (open("README.md").read() if __import__("os").path.exists("README.md") else "")
