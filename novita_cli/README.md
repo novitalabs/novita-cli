@@ -8,7 +8,7 @@ Command-line interface for all Novita AI APIs: LLM chat, embeddings, image gener
 pip install -e .
 ```
 
-This installs two commands: `novita` and `cnovita`.
+This installs the `novita` command.
 
 ## Configuration
 

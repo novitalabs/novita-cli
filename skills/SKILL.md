@@ -1,15 +1,17 @@
 ---
 name: novita
-version: 0.2.1
+version: 0.3.0
 description: >
   CLI for all Novita AI APIs — LLM chat, image generation/editing (Stable Diffusion, FLUX),
   video generation, text-to-speech, speech-to-text, voice cloning, GPU cloud instance management,
   and serverless endpoints. Use this skill whenever the user wants to call Novita AI services,
   generate or edit images, create videos, do TTS/ASR, manage GPU instances, deploy serverless
   workloads, or interact with any novita.ai API. Also trigger when the user mentions the `novita`
-  or `cnovita` CLI tool, Novita AI pricing/models/balance, or any task involving the Novita platform.
+  CLI tool, Novita AI pricing/models/balance, or asks for workplace image assets such as PPT
+  graphics, marketing posters, product photos, social media visuals, avatars, flowcharts,
+  UI mockups, exploded diagrams, report illustrations, or prompt-polished image generation.
 command: novita
-install: pip install cnovita
+install: pip install novita-cli
 env:
   NOVITA_API_KEY: required — get one at https://novita.ai/settings/key-management
 capabilities:
@@ -54,6 +56,7 @@ Access all Novita AI APIs from the command line. 95 tests pass (34 unit + 61 E2E
 
 For the full command reference, read `references/commands.md`.
 For verified endpoint coverage, read `references/endpoints.md`.
+For workplace image prompt templates, read `references/easy-image/`.
 
 ## Quick Reference
 
@@ -128,6 +131,29 @@ novita serverless list / get / create / update / delete
 
 ## Decision Guide
 
+### Workplace image assistant
+When the user asks for a business/workplace visual (PPT cover, poster, product photo, report graphic, social content, avatar, badge, sticker, intro graphic, flowchart, UI prototype, exploded diagram):
+
+1. Parse the request into scene, channel, subject, style, ratio, text content, and any brand/product constraints.
+2. If the core subject is missing, ask one concise question. Otherwise proceed.
+3. Load the matching template from `references/easy-image/templates/{scene}.md`; use `references/easy-image/glossary.md` for professional terminology if useful.
+4. Build one polished English prompt. If visible text is requested, specify the exact text and language.
+5. Choose dimensions from the channel map below, then call Novita CLI. Prefer `novita image flux` for quick drafts and `novita image generate` for higher-control Stable Diffusion jobs.
+6. Show a short enhancement summary before generation, then save images to the requested output directory or the current directory.
+
+Channel size map:
+
+| Channel | Size |
+|---------|------|
+| PPT / presentation | `-W 1280 -H 720` |
+| WeChat Moments / square product image | `-W 1024 -H 1024` |
+| Xiaohongshu / portrait social post | `-W 768 -H 1024` |
+| Douyin / short video cover | `-W 576 -H 1024` |
+| WeChat article header | `-W 1408 -H 600` |
+
+Available easy-image templates:
+`avatar`, `badge-id`, `emoji-sticker`, `exploded-diagram`, `flowchart`, `intro-graphic`, `marketing-poster`, `ppt-slides`, `product-photo`, `report-illustration`, `scene-photo`, `social-media-grid`, `ui-prototype`.
+
 ### Which image command?
 - **Text -> Image**: `image flux` (fast, sync) or `image generate` (SD, async, more control)
 - **Image + Text -> New Image**: `image img2img` (async)
@@ -179,6 +205,7 @@ novita audio asr hello.mp3
 - Use `--no-stream` with chat for complete JSON responses
 - For async commands, use `--no-wait` to get task_id, then `novita task wait <id>` for control
 - All commands exit with code 1 on error, printing to stderr
+- For image requests that mention current, latest, real brands/products, or exact public figures, use web search before prompt assembly when up-to-date visual accuracy matters.
 - GPU instance creation costs real money — check `novita gpu products` for pricing first
 - Template CRUD is free — safe for testing
 

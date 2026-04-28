@@ -9,9 +9,9 @@ from unittest.mock import MagicMock, patch
 
 from click.testing import CliRunner
 
-from cnovita.core.client import NovitaClient, NovitaError, BASE_URL
-from cnovita.utils.output import format_balance, format_table
-from cnovita.novita_cli import cli
+from novita_cli.core.client import NovitaClient, NovitaError, BASE_URL
+from novita_cli.utils.output import format_balance, format_table
+from novita_cli.novita_cli import cli
 
 
 class TestNovitaClient(unittest.TestCase):
@@ -209,7 +209,7 @@ class TestCLIMocked(unittest.TestCase):
     def setUp(self):
         self.runner = CliRunner()
 
-    @patch("cnovita.novita_cli.NovitaClient")
+    @patch("novita_cli.novita_cli.NovitaClient")
     def test_models_list_json(self, MockClient):
         mock_instance = MockClient.return_value
         mock_instance.list_models.return_value = {
@@ -223,7 +223,7 @@ class TestCLIMocked(unittest.TestCase):
         data = json.loads(result.output)
         self.assertEqual(data[0]["id"], "test-model")
 
-    @patch("cnovita.novita_cli.NovitaClient")
+    @patch("novita_cli.novita_cli.NovitaClient")
     def test_account_balance_json(self, MockClient):
         mock_instance = MockClient.return_value
         mock_instance.get_balance.return_value = {"credit_balance": 50000, "allow_features": ["upload_model"]}
@@ -232,7 +232,7 @@ class TestCLIMocked(unittest.TestCase):
         data = json.loads(result.output)
         self.assertEqual(data["credit_balance"], 50000)
 
-    @patch("cnovita.novita_cli.NovitaClient")
+    @patch("novita_cli.novita_cli.NovitaClient")
     def test_embed_json(self, MockClient):
         mock_instance = MockClient.return_value
         mock_instance.embeddings.return_value = {
@@ -244,7 +244,7 @@ class TestCLIMocked(unittest.TestCase):
         data = json.loads(result.output)
         self.assertEqual(len(data["data"][0]["embedding"]), 2)
 
-    @patch("cnovita.novita_cli.NovitaClient")
+    @patch("novita_cli.novita_cli.NovitaClient")
     def test_gpu_list_json(self, MockClient):
         mock_instance = MockClient.return_value
         mock_instance.gpu_list_instances.return_value = {
@@ -259,7 +259,7 @@ class TestCLIMocked(unittest.TestCase):
         data = json.loads(result.output)
         self.assertEqual(data["instances"][0]["name"], "test-gpu")
 
-    @patch("cnovita.novita_cli.NovitaClient")
+    @patch("novita_cli.novita_cli.NovitaClient")
     def test_gpu_products_json(self, MockClient):
         mock_instance = MockClient.return_value
         mock_instance.gpu_list_products.return_value = {
@@ -271,7 +271,7 @@ class TestCLIMocked(unittest.TestCase):
         data = json.loads(result.output)
         self.assertEqual(data["data"][0]["name"], "A100-80G")
 
-    @patch("cnovita.novita_cli.NovitaClient")
+    @patch("novita_cli.novita_cli.NovitaClient")
     def test_serverless_list_json(self, MockClient):
         mock_instance = MockClient.return_value
         mock_instance.serverless_list_endpoints.return_value = {
@@ -285,7 +285,7 @@ class TestCLIMocked(unittest.TestCase):
         data = json.loads(result.output)
         self.assertEqual(data["endpoints"][0]["name"], "my-endpoint")
 
-    @patch("cnovita.novita_cli.NovitaClient")
+    @patch("novita_cli.novita_cli.NovitaClient")
     def test_template_list_json(self, MockClient):
         mock_instance = MockClient.return_value
         mock_instance.gpu_list_templates.return_value = {
@@ -307,7 +307,7 @@ class TestCLISubprocess(unittest.TestCase):
         path = shutil.which(name)
         if path:
             return name
-        return [sys.executable, "-m", "cnovita.novita_cli"]
+        return [sys.executable, "-m", "novita_cli.novita_cli"]
 
     def test_help_subprocess(self):
         cmd = self._resolve_cli()

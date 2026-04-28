@@ -25,7 +25,7 @@ def requires_api_key(func):
 
 def invoke(runner, args, json_mode=False):
     """Helper to invoke CLI with API key."""
-    from cnovita.novita_cli import cli
+    from novita_cli.novita_cli import cli
     cmd = ["--api-key", API_KEY]
     if json_mode:
         cmd = ["--json-output"] + cmd
@@ -341,7 +341,7 @@ class TestE2E_Batch(unittest.TestCase):
     @requires_api_key
     def test_batch_full_lifecycle(self):
         """Upload file -> create batch -> get batch -> verify in list."""
-        from cnovita.core.client import NovitaClient, NovitaError
+        from novita_cli.core.client import NovitaClient, NovitaError
 
         client = NovitaClient(api_key=API_KEY)
 
@@ -458,7 +458,7 @@ class TestE2E_Template_Lifecycle(unittest.TestCase):
     @requires_api_key
     def test_template_full_lifecycle(self):
         """Create a template, get it, find it in list, then delete it."""
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
 
@@ -551,7 +551,7 @@ class TestE2E_GPU_Instance_Lifecycle(unittest.TestCase):
     @requires_api_key
     def test_gpu_instance_create_get_delete(self):
         """Create a spot GPU instance, verify it, then delete immediately."""
-        from cnovita.core.client import NovitaClient, NovitaError
+        from novita_cli.core.client import NovitaClient, NovitaError
 
         client = NovitaClient(api_key=API_KEY)
 
@@ -617,7 +617,7 @@ class TestE2E_Audio_RoundTrip(unittest.TestCase):
     @requires_api_key
     def test_tts_then_asr_roundtrip(self):
         """Generate TTS audio, download it, run ASR, verify text matches."""
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
         import requests as req
 
         client = NovitaClient(api_key=API_KEY)
@@ -720,7 +720,7 @@ class TestE2E_Image_Upscale(unittest.TestCase):
     def test_flux_then_upscale(self):
         """Generate tiny FLUX image, download, then upscale it."""
         import requests as req
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
 
@@ -764,7 +764,7 @@ class TestE2E_Video(unittest.TestCase):
     @requires_api_key
     def test_video_generate_submit(self):
         """Submit a txt2video task and verify task_id is returned."""
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
         task_id = client.txt2video(request={
@@ -784,7 +784,7 @@ class TestE2E_Video(unittest.TestCase):
     @requires_api_key
     def test_video_hunyuan_submit(self):
         """Submit a hunyuan-video-fast task and verify task_id is returned."""
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
         task_id = client.hunyuan_video(
@@ -809,7 +809,7 @@ class TestE2E_Image_Processing(unittest.TestCase):
     def test_flux_then_remove_bg(self):
         """Generate FLUX image, download, then remove background."""
         import requests as req
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
 
@@ -857,7 +857,7 @@ class TestE2E_TaskAPI(unittest.TestCase):
     @requires_api_key
     def test_task_lifecycle_submit_status_wait(self):
         """Submit async txt2img, check status, then wait for result."""
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
 
@@ -923,7 +923,7 @@ class TestE2E_Files(unittest.TestCase):
     @requires_api_key
     def test_files_upload_get_delete_lifecycle(self):
         """Upload a file, get its details, then delete it."""
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
 
@@ -970,7 +970,7 @@ class TestE2E_Image_Editing(unittest.TestCase):
             return self._tmp_image
 
         import requests as req
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
         flux_result = client.flux_schnell(
@@ -1112,7 +1112,7 @@ class TestE2E_Template_Edit(unittest.TestCase):
     @requires_api_key
     def test_template_create_edit_delete(self):
         """Create a template, edit its name, then delete it."""
-        from cnovita.core.client import NovitaClient
+        from novita_cli.core.client import NovitaClient
 
         client = NovitaClient(api_key=API_KEY)
         ts = int(time.time())

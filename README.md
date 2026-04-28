@@ -1,4 +1,4 @@
-# cnovita
+# novita-cli
 
 CLI for all Novita AI APIs — LLM chat, images, video, audio, GPU instances, serverless endpoints, and more.
 
@@ -6,17 +6,17 @@ CLI for all Novita AI APIs — LLM chat, images, video, audio, GPU instances, se
 
 **CLI:**
 ```bash
-pip install cnovita
+pip install novita-cli
 ```
 
 **Skill:**
 ```bash
-npx skills add jaxzhang-novita/cnovita
+npx skills add novitalabs/novita-cli
 ```
 
 **Agent:**
 ```
-Install cnovita by `npx skills add jaxzhang-novita/cnovita` and tell me how to use it
+Install the Novita skill with `npx skills add novitalabs/novita-cli` and tell me how to use it
 ```
 
 ## API Key
