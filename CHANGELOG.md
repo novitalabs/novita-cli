@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added a standard MIT `LICENSE` file.
+- Added CI for pull requests and pushes to run pytest, build, and `twine check`.
+
 ### Changed
 - Project moved to `novitalabs/novita-cli`.
 - PyPI distribution renamed to `novita-cli`; Python imports now use `novita_cli`.
 - CLI entry point is now only `novita`; the old alternate command alias has been removed.
+- Moved package metadata to `pyproject.toml` and kept `setup.py` as a compatibility shim.
+- Updated the package to require Python 3.9+.
+- Tightened README wording from "all Novita AI APIs" to "major Novita AI APIs".
+
+### Fixed
+- Excluded `novita_cli/tests` from built wheels.
+- Removed deprecated setuptools license classifier usage.
 
 ## [0.3.0] - 2026-03-24
 
