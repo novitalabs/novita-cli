@@ -1,6 +1,6 @@
 # novita-cli
 
-CLI for all Novita AI APIs — LLM chat, images, video, audio, GPU instances, serverless endpoints, and more.
+CLI for major Novita AI APIs — LLM chat, images, video, audio, GPU instances, serverless endpoints, and more.
 
 ## Get Started
 
@@ -57,6 +57,8 @@ novita account balance
 ```
 
 ## Command Groups
+
+Supported command groups in this release:
 
 | Command | Description |
 |---------|-------------|
