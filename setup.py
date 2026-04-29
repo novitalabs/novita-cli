@@ -1,4 +1,4 @@
-"""Setup for novita-cli."""
+"""Setup shim for the novita package."""
 
 from setuptools import setup
 

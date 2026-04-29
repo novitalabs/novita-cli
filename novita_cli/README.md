@@ -5,7 +5,7 @@ Command-line interface for major Novita AI APIs: LLM chat, embeddings, image gen
 ## Installation
 
 ```bash
-pip install novita-cli
+pip install novita
 ```
 
 This installs the `novita` command.
