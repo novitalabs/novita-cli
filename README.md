@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/novita-cli/"><img alt="PyPI" src="https://img.shields.io/pypi/v/novita-cli"></a>
-  <a href="https://pypi.org/project/novita-cli/"><img alt="Python" src="https://img.shields.io/pypi/pyversions/novita-cli"></a>
+  <a href="https://pypi.org/project/novita/"><img alt="PyPI" src="https://img.shields.io/pypi/v/novita"></a>
+  <a href="https://pypi.org/project/novita/"><img alt="Python" src="https://img.shields.io/pypi/pyversions/novita"></a>
   <a href="LICENSE"><img alt="License" src="https://img.shields.io/badge/license-MIT-green"></a>
 </p>
 
@@ -39,7 +39,7 @@ container runtime environments.
 ## Install
 
 ```bash
-pip install novita-cli
+pip install novita
 ```
 
 For AI agents:
